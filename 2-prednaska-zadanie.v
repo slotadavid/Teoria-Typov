@@ -1,5 +1,5 @@
 (*********************************************)
-(**       Zadanie k prednáške 2             **)
+(**       Zadanie k prednáške 2            **)
 (*Import potrebných knižníc*)
 Require Import Coq.Bool.Bool.
 Require Import Init.Nat.
