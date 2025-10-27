@@ -17,77 +17,162 @@ Local Open Scope list_scope.
 (*-------------------------------------------*)
 
 
-(** Úloha 1 ★  
-    Dokážte, že z `even p = true` vyplýva `odd (S p) = true`.*)
-Theorem silly_ex : forall p,
-  (forall n, even n = true -> even (S n) = false) ->
-  (forall n, even n = false -> odd n = true) ->
-  even p = true ->
-  odd (S p) = true.
-Proof. Admitted.
+(; (bodkočiarka)
+  - aplikuje druhú taktiku na všetky vetvy po destruct
+
+*)
 
 
-(** Úloha 2 ★  
-    Dokážte, že ak `l = rev l'`, potom aj `l' = rev l`. *)
-Theorem rev_exercise1 : forall (l l' : list nat),
-  l = rev l' -> l' = rev l.
-Proof. Admitted.
+(**
+===========================================
+      MAPA TAKTÍK – VIZUÁLNY PREHĽAD
+===========================================
+
+Cieľom je vedieť rýchlo určiť, KTORÚ taktiku
+použiť v danej situácii.
+
+────────────────────────────────────────────
+1  PRÁCA S ROVNOSŤAMI
+────────────────────────────────────────────
+        +----------------------+
+        |  Potrebujem dokázať  |
+        |     x = y            |
+        +----------------------+
+                 │
+                 ▼
+     ┌────────────────────────────┐
+     │ obe strany rovnaké →       │ reflexivity
+     │ známa rovnosť H : x = y →  │ apply H
+     │ opačný smer →              │ symmetry
+     │ cez medzičlánok →          │ transitivity
+     │ konštruktor rovnaký →      │ injection
+     │ konštruktor rôzny →        │ discriminate
+     │ chcem nahradiť v kontexte →│ subst
+     └────────────────────────────┘
+
+────────────────────────────────────────────
+2  SPORY A KONTRADIKCIE
+────────────────────────────────────────────
+        +----------------------+
+        |  V kontexte mám      |
+        |  spor (False, P ∧ ¬P)|
+        +----------------------+
+                 │
+                 ▼
+     ┌────────────────────────────┐
+     │ logický spor →             │ contradiction
+     │ nemožná rovnosť (S n = O) →│ discriminate
+     │ z False dokážem čokoľvek → │ destruct H
+     └────────────────────────────┘
+
+────────────────────────────────────────────
+3  PRÁCA S KONTEXTOM
+────────────────────────────────────────────
+        +----------------------+
+        |  Chcem upraviť alebo |
+        |  použiť hypotézu     |
+        +----------------------+
+                 │
+                 ▼
+     ┌────────────────────────────┐
+     │ zjednodušiť výraz →        │ simpl / simpl in H
+     │ aplikovať implikáciu →     │ apply ... in
+     │ konkretizovať ∀ →          │ specialize H with (...)
+     │ rozbaliť definíciu →       │ unfold názov
+     │ rozdeliť tvar →            │ destruct ... eqn:
+     │ vrátiť premennú do cieľa → │ revert
+     │ zmeniť poradie pre indukciu│ generalize dependent
+     └────────────────────────────┘
+────────────────────────────────────────────
+4  LOGICKÉ SPOJKY (Prop)
+────────────────────────────────────────────
+        +----------------------+
+        |  Cieľ alebo hypotéza  |
+        |  má tvar P /\ Q , P \/ Q , ∃ x, P x, ~P |
+        +----------------------+
+                 │
+                 ▼
+     ┌────────────────────────────┐
+     │ P /\ Q →                   │ split / destruct
+     │   • cieľ: split.           │ rozdelí P /\ Q na P a Q
+     │   • hypotéza H: destruct H │ H : P /\ Q → H1 : P, H2 : Q
+     │     as [HP HQ].            │
+     ├────────────────────────────┤
+     │ P \/ Q →                   │ left / right / destruct
+     │   • cieľ: vyber stranu:    │
+     │           left. apply HP.  │
+     │   • hypotéza H:            │
+     │    destruct H as [HP | HQ].│
+     ├────────────────────────────┤
+     │ ∃ x, P x →                 │ exists / destruct
+     │   • cieľ:                  │
+     │       exists t; apply ...  │
+     │   • hypotéza H:            │ 
+     │     destruct H as [x Hx].  │
+     ├────────────────────────────┤
+     │ P -> Q →                   │ intros / apply
+     │   • cieľ:                  │
+     │        intros HP; apply H. │
+     │   • hypotéza H:            │
+     │        apply H in HP.      │
+     ├────────────────────────────┤
+     │ ~P (P -> False) →          │ intros; destruct
+     │   • cieľ: intros HP;       │
+     │           destruct HP      │
+     │   • hypotéza H :           │ 
+     │       ~P → apply H in HP   │
+     ├────────────────────────────┤
+     │ False →                    │ contradiction / destruct
+     │   • hypotéza H :           │
+     │      False → contradiction │
+     │   • z False možno          │
+     │     dokázať čokoľvek       │
+     └────────────────────────────┘
+
+────────────────────────────────────────────
+PRÍKLADY:
+────────────────────────────────────────────
+1) Existencia v kontexte:
+   H : ∃ x, P x
+   → destruct H as [x Hx]. (* Hx : P x *)
+
+2) Existencia v cieli:
+   Goal: ∃ x, P x
+   → exists t. (* t je konkrétny kandidát *)
+   → apply H.  (* ak máme dôkaz P t *)
+
+3) Negácia / absurdum:
+   H : P /\ ~P
+   → destruct H as [HP HnP].
+   → contradiction. (* logický spor *)
+
+4) Hypotéza False:
+   H : False
+   → contradiction. 
+   (* z False možno dokázať čokoľvek *)
 
 
-(** Úloha 3 ★  
-    Dokážte, že z dvoch rovností zoznamov vyplýva `x = y`. *)
-Example injection_ex3 : forall (X : Type) (x y z : X) (l j : list X),
-  x :: y :: l = z :: j ->
-  j = z :: l ->
-  x = y.
-Proof. Admitted.
+────────────────────────────────────────────
+5  STRATÉGIA DÔKAZU
+────────────────────────────────────────────
+   • **Backward reasoning** – začni od cieľa
+       (apply, transitivity, symmetry, intros)
 
+   • **Forward reasoning** – začni z hypotéz
+       (apply ... in, specialize, simpl in)
 
-(** Úloha 4 ★  
-    Dokážte, že zoznam `x :: y :: l` sa nemôže rovnať prázdnemu zoznamu. *)
-Example discriminate_ex3 :
-  forall (X : Type) (x y z : X) (l j : list X),
-    x :: y :: l = [] ->
-    x = z.
-Proof. Admitted.
+   • **Reorganizácia dôkazu**
+       (assert, revert, generalize dependent)
 
+   • **Riadenie vetiev**
+       (destruct ... eqn:, ;, repeat)
 
-(** Úloha 5 ★  
-    Dokážte, že ak `n =? m = true`, potom `n = m`. *)
-Theorem eqb_true : forall n m,
-  n =? m = true -> n = m.
-Proof. Admitted.
+   • **Automatické riešenie sporu**
+       (discriminate, contradiction)
 
-
-(** Úloha 6 ★  
-    Dokážte, že ak `n + n = m + m`, potom `n = m`. *)
-Theorem plus_n_n_injective : forall n m,
-  n + n = m + m ->
-  n = m.
-Proof. Admitted.
-
-
-(** Úloha 7 ★  
-    Dokážte, že ak `length l = n`, potom `nth_error l n = None`. *)
-Theorem nth_error_after_last: forall (n : nat) (X : Type) (l : list X),
-  length l = n ->
-  nth_error l n = None.
-Proof. Admitted.
-
-
-(** Úloha 8 ★  
-    Dokážte, že pre ľubovoľnú booleovskú funkciu `f` platí `f (f (f b)) = f b`. *)
-Theorem bool_fn_applied_thrice :
-  forall (f : bool -> bool) (b : bool),
-  f (f (f b)) = f b.
-Proof. Admitted.
-
-
-(** Úloha 9 ★  
-    Dokážte symetriu `eqb`: `(n =? m) = (m =? n)`. *)
-Theorem eqb_sym : forall (n m : nat),
-  (n =? m) = (m =? n).
-Proof. Admitted.
+   • **Rozbalenie a analýza**
+       (unfold, induction)
+*)
 
 
 (** Úloha 10 ★  
