@@ -1,34 +1,21 @@
 (*********************************************)
-(**       Zadanie k prednáške 1             **)
+(**       Zadanie k prednáške 1         **)
 (*********************************************)
 (**       Programovanie v Rocq              **)
-
-(*
-  Poznámka:
-  Odporúčam stiahnuť a vytlačiť nasledujúce "cheatsheets":
-  -https://www.inf.ed.ac.uk/teaching/courses/tspl/cheatsheet.pdf
-  -https://www.cs.cornell.edu/courses/cs3110/
-   2018sp/a5/coq-tactics-cheatsheet.html
-
-  Poznámka:
-  Ďalšiu odporúčanú literatúru nájdete 
-  na stránke predmetu.
-*)
 
 (*
   Úloha 1.1
   Definujte modul cvicenieBool pre prácu s vlastným typom bool.
 *)
 
-Module cvicenieBool.
+Module cvicenieBool. = andb (b1 b2:bool) :bool
 
 (*
   Úloha 1.2
   Definujte vlastný induktívny typ bool.
 *)
 
-(* tu príde definícia TODO *)
-Inductive bool: Type :=.
+Inductive bool: Type :=.forall (X:Type) (x y z : X), x = y -> y = z -> x = z.
 
 
 (*
@@ -38,32 +25,36 @@ Inductive bool: Type :=.
   - konjunkcia
   - disjunkcia
   - implikácia
-  Pomenujte ich negb, andb, orb, implb. 
 *)
 
-(* definície funkcií TODO *)
-Definition negb (b:bool) :bool . 
-Admitted.
-
-Definition andb (b1 b2:bool) :bool . 
-Admitted.
-
-Definition orb (b1 b2:bool) :bool .
-Admitted.
-
-Definition implb (b1 b2:bool) :bool . 
-Admitted.
+Definition neg (A : Type) (x : A) : A := x.
+Definition con : forall A : Type, A -> A := fun A x => x.
+Definition dis (B : Type) (x : A) : B := x *?.
+Definition imp : forall A : Type, A ->B *?.
+Compute id_poly nat 3. (* 3 : nat *)
 
 (*
   Úloha 1.4
-  Využitím Vernacular príkazov:
-  - Check
-  - Print
-  - About
-  vypíšte informácie o Vašich definíciách a 
-  pouvažujte nad rozdielmi medzi nimi.
+  Vernacular príkazy:
 *)
 
+Notation "x * y" := (mult x y)(at level 40, left associativity).
+Notation "x + y" := (plus x y)(at level 50, left associativity).
+Notation "0"   := (O)(at level 1).
+Notation "1"   := (S O)(at level 1).
+Notation "2"   := (S 1)(at level 1).
+Notation "3"   := (S 2)(at level 1).
+Notation "4"   := (S 3)(at level 1).
+Notation "5"   := (S 4)(at level 1).
+Notation "6"   := (S 5)(at level 1).
+Notation "7"   := (S 6)(at level 1).
+Notation "8"   := (S 7)(at level 1).
+Notation "9"   := (S 8)(at level 1).
+Notation "10"   := (S 9)(at level 1).
+
+(* Notácie pre všetky čísla by bolo možné zadefinovať 
+   prostredníctvom preprocesorov systému ROCQ, 
+   Neskôr budume používať typ zo štandardnej knižnice *)
 (* príklady použitia: Check ..., Print ..., About ... TODO *)
 Check andb.
 Check orb.
@@ -89,7 +80,6 @@ About negb.
 *)
 
 (* 
-TODO odkomentovať
 
 Compute (negb true).
 Compute (negb false).
@@ -122,8 +112,23 @@ Compute (implb false false).
   operátorov.
 *)
 
-(* Notation ... TODO*)
 
+Theorem intros : forall (n m : nat),
+ n + m = m + n -> n + m = m + n.
+Proof.
+  intro n.
+  intro m.
+  intro H.    (* zoberieme n, m a predpoklad H *)
+  exact H.         (* použijeme H priamo *)
+Qed.
+
+
+Theorem intros' : forall (n m : nat),
+ n + m = m + n -> n + m = m + n.
+Proof.
+  intros n m H.    (* zoberieme n, m a predpoklad H *)
+  exact H.         (* použijeme H priamo *)
+Qed.
 
 (*
   Úloha 1.7
@@ -131,14 +136,22 @@ Compute (implb false false).
   implementáciu notácií.
 *)
 
-(*
-  Predpokladáme, že máte definované:
-  - funkciu negácie
-  - konjunkciu
-  - disjunkciu
-  - implikáciu
-  a zavedené notácie: !, &&&, |||, --->.
-*)
+
+Theorem example_rewrite_with_theorem :
+  forall n, 0 + n + 1 = n + 1.
+Proof.
+  intro n.
+  rewrite plus_O_n.   (* použijeme lemma plus_O_n *)
+  reflexivity.
+Qed.
+
+Theorem example_rewrite_chain :
+  forall n, n = n + 0 -> n + 1 = (n + 0) + 1.
+Proof.
+  intros n H.
+  rewrite <- H.          (* prepíšeme n na n+0 podľa H *)
+  reflexivity.
+Qed.
 
 (*
   Testovacie príklady pre zavedenú notáciu (!, &&&, |||, --->)
@@ -219,9 +232,7 @@ End cvicenieBool.
   Zistite, ako je daný typ implementovaný v štandardnej knižnici 
   a aké operácie nad ním sú definované.
   
-  TODO
 *)
-
 
 (*
   Úloha 1.11
@@ -232,16 +243,7 @@ End cvicenieBool.
   s využitím typu nat zo štandardnej knižnice.
 *)
 
-(* TODO definície funkcií succesor, pred, iszero *)
 
-Definition succesor (n:nat) : nat .
-Admitted.
-
-Definition pred (n:nat) : nat .
-Admitted.
-
-Definition iszero (n:nat) : bool .
-Admitted.
 
 (*
   Úloha 1.12
@@ -274,80 +276,137 @@ Admitted.
 
 (*
  Úloha 2.1. 
- Dokážte, že každý boolean je rovný sám sebe.
+ Disjunkcia
 *)
-Theorem bool_self : forall b : bool, b = b.
+Ak máme `H : P \/ Q`, znamená to, že platí buď `P`, alebo `Q`.
+Musíme teda dokázať cieľ **v oboch prípadoch**.
+Na to použijeme `destruct H as [HP | HQ].`
+
+`destruct` na disjunkcii vytvorí dve vetvy dôkazu — 
+jednu pre každý prípad.
+*)
+
+Lemma disj_in_context : 
+forall P Q R : Prop, P \/ Q -> (P -> R) -> (Q -> R) -> R.
 Proof.
-Admitted.
+  intros P Q R H HPtoR HQtoR.
+  destruct H as [HP | HQ].   
+  (* rozdelíme prípady podľa disjunkcie *)
+  - apply HPtoR. exact HP.
+  - apply HQtoR. exact HQ.
+Qed.
+
 
 (*
  Úloha 2.2. 
- Dokážte, že 4 + 0 = 4.
+ specialize trans_q
 *)
 
-Theorem four_plus_zero : 4 + 0 = 4.
+  Ak máme [H : forall (x:T), P], potom
+  [specialize H with (x := e)] nahradí [H] za [P[x:=e]].
+
+  Vychádza zo zákona: 
+    (∀x)P(x) => P(t), 
+  kde t je akýkoľvek výraz.
+
+  Je to v podstate kombinácia [assert] a [apply], ale
+  často pôsobí prirodzenejšie.
+*)
+
+Search (1 * _). 
+(* Nájdenie pomocnej vety PeanoNat.Nat.mul_1_l:
+PeanoNat.Nat.mul_1_l: forall n : nat, 1 * n = n
+*)
+
+(* Príklad: dosadíme m := 1 *)
+Theorem specialize_example: forall n,
+     (forall m, m * n = 0) ->
+     n = 0.
 Proof.
-Admitted.
+  intros n H.
+  specialize H with (m := 1).
+  rewrite PeanoNat.Nat.mul_1_l in H.
+  apply H.
+Qed.
+
+(* Pomocná veta *)
+Theorem trans_eq : 
+  forall (X:Type) (x y z : X), x = y -> y = z -> x = z.
+Proof.
+  intros X x y z eq1 eq2.
+  rewrite -> eq1. rewrite -> eq2. reflexivity.
+Qed.
+
+(* Použitie specialize na globálnu vetu trans_eq *)
+Example trans_eq_example''' : forall (a b c d e f : nat),
+     [a;b] = [c;d] ->
+     [c;d] = [e;f] ->
+     [a;b] = [e;f].
+Proof.
+  intros a b c d e f eq1 eq2.
+  specialize trans_eq with (y := [c;d]) as H.
+  apply H.
+  apply eq1.
+  apply eq2. 
+Qed.
+
 
 (*
  Úloha 2.3.
 *)
 Theorem use_assumption :
   forall (n m : nat), n = m -> n = m.
-Proof.
-Admitted.
+
+Dôkaz vykonáme indukciou na n.
+
+- Základný prípad: n = 0
+  Musíme ukázať:
+      0 + 0 = 0
+  Toto vyplýva priamo z definície sčítania.
+
+- Indukčný krok: predpokladajme, že n = n' + 1
+  a že pre n' platí indukčná hypotéza:
+      n' + 0 = n'
+  Musíme ukázať:
+      (n' + 1) + 0 = n' + 1
+  Podľa definície sčítania:
+      (n' + 1) + 0 = (n' + 0) + 1
+  A z indukčnej hypotézy vieme, že n' + 0 = n', takže:
+      (n' + 0) + 1 = n' + 1
+  Teda:
+      (n' + 1) + 0 = n' + 1
+  Čo je presne to, čo sme chceli dokázať.
 
 (*
  Úloha 2.4. 
- Dokážte, že ak n = m, tak n + 2 = m + 2.
-*)
-Theorem plus_two :
-  forall (n m : nat), n = m -> n + 2 = m + 2.
+
+Theorem plus_n_O : forall n : nat, n + 0 = n.
 Proof.
-Admitted.
+intro. 
+(* [| n' IH] nepovinný argument, pomenuje n v dôkaze n' a IH *)
+induction n as [| n' IH]. 
+- (* Základný prípad: n = 0 *)
+  simpl. reflexivity.
+- (* Indukčný krok: predpokladajme, že n' + 0 = n' (IH),
+     potom dokážeme, že (S n') + 0 = S n' *)
+  simpl.
+  rewrite IH.
+  reflexivity.
+Qed.
+
+*)
+
 
 (*
  Úloha 2.5. Rewrite s lemmou
  Najprv dokážte jednoduchú lemmu a potom ju použite 
  v plus_zero_example.
 *)
-Theorem add_zero_left : forall n, 0 + n = n.
+forall n : nat, n = n.
 Proof.
-Admitted.
+  intros n.
+  destruct n as [| n'].  (* rozdelíme na O a S n' *)
+  - reflexivity.          (* prípad O *)
+  - reflexivity.          (* prípad S n' *)
+Qed.
 
-Theorem plus_zero_example : forall n, 0 + n + 3 = n + 3.
-Proof.
-Admitted.
-
-(*
- Úloha 2.6. 
- Dokážte, že b || true = true.
-*)
-(* Načítanie typu zo štandardnej knižnice *)
-Require Import Coq.Bool.Bool.
-Compute (true && true).  (*konjunjcia*)
-Compute (true || true).  (*disjunkcia*)
-Compute (negb true).     (*negácia*)
-
-Theorem orb_true : forall b : bool, b || true = true.
-Proof.
-Admitted.
-
-(*
- Úloha 2.7.
- Dokážte, že pre každé n : nat platí:
-   1 + n = S n
-*)
-
-Theorem one_plus_n : forall n : nat, 1 + n = S n.
-Proof.
-Admitted.
-
-
-(*
- Úloha 2.8. 
- Dokážte: (n = m) -> (m = k) -> (n = k).
-*)
-Theorem trans_eq : forall n m k : nat, n = m -> m = k -> n = k.
-Proof.
-Admitted.
