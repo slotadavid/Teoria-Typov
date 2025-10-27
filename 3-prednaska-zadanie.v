@@ -20,75 +20,6 @@ Local Open Scope list_scope.
 (* --- Pracujeme v module natpair --- *)
 Module natpair.
 
-(*- Definícia typu a príslušných operácií -  *)
-
-Inductive natpair: Type :=
-| pair (n m :nat).
-Notation "( x , y )" := (pair x y).
-
-Definition fst (x: natpair) : nat := 
-match x with
-| (m, n) => m
-end.
-
-Definition snd (x: natpair) : nat := 
-match x with
-| (m, n) => n
-end.
-
-Definition swap (p : natpair) : natpair :=
-match p with
-| pair m n => pair n m 
-end. 
-
-(*- Úlohy:                                     -  *)
-
-(** Úloha 1 ★: 
-    Dokážte, že snd a fst vymenia poradie prvkov. *)
-Theorem snd_fst_is_swap : forall (p : natpair),
-  (snd p, fst p) = swap p.
-Proof.
-Admitted. 
-
-(** Úloha 2 ★: Dokážte, 
-            že fst po operácii swap je rovné snd. *)
-Theorem fst_swap_is_snd : forall (p : natpair),
-  fst (snd p, fst p) = snd p.
-Proof.
-Admitted.
-
-
-End natpair.
-
-(*-------------------------------------------*)
-(** Úlohy: typ zoznam prirodzených čísel     *)
-(*-------------------------------------------*)
-
-(* --- Pracujeme v module matlist --- *)
-Module natlist.
-
-(*- Definícia typu a príslušných operácií -  *)
-Inductive natlist : Type :=
-| nil
-| cons (n: nat) (l:natlist).
-
-Check (nil).
-Check (cons 1 (cons 3 nil)).
-
-(* Zavedenie štandardnej notácie *)
-
-Notation "[]" := nil.
-Notation "[ x ; .. ; y ]" := (cons x .. (cons y nil) ..).
-Notation "x :: l" := (cons x l) 
-                     (at level 60, right associativity).
-
-(* Funkcie z prednášky *)
-
-Fixpoint repeat (n count :nat) : natlist := 
-match count with
-| 0 => []
-| S m => n :: (repeat n m)
-end.
 
 Fixpoint length (l:natlist) : nat := 
 match l with 
@@ -149,70 +80,6 @@ end.
 Fixpoint alternate (l1 l2 : natlist) : natlist.
 Admitted.
 
-
-(** Testy *)
-
-Example test_alternate1 :
-  alternate [1;2;3] [4;5;6] = [1;4;2;5;3;6].
-Proof. Admitted.
-
-Example test_alternate2 :
-  alternate [1] [4;5;6] = [1;4;5;6].
-Proof. Admitted.
-
-Example test_alternate3 :
-  alternate [1;2;3] [4] = [1;4;2;3].
-Proof. Admitted.
-
-Example test_alternate4 :
-  alternate [] [20;30] = [20;30].
-Proof. Admitted.
-
-(** Úloha 4 ★: 
-  Úloha: Doplnte definíciu funkcie sum, ktorá 
-  zráta prvky zoznamu. 
-  Pri prázdnom zozname vráti hodnotu 0.
-
-  Príklad:
-    sum [] = 0.
-    sum [1;2;3;4;5] = 15.
-*)
-
-Fixpoint sum (l:natlist) : nat .
-Admitted.
-
-Example test_sum :
-  sum [1;5;4] = 10.
-Proof. Admitted.
-
-
-(** Úloha 5 ★★:
-  Úloha: Doplnte definíciu funkcie [nonzeros], ktorá 
-  z daného zoznamu odstráni všetky nuly.
-
-  Príklad:
-    nonzeros [0;1;0;2;3;0;0] = [1;2;3].
-*)
-
-Fixpoint nonzeros (l : natlist) : natlist .
-Admitted.
-
-Example test_nonzeros :
-  nonzeros [0;1;0;2;3;0;0] = [1;2;3].
-Proof. Admitted.
-
-(** Úloha 6 ★★:
-  Úloha: Doplnte definíciu funkcie [oddmembers], ktorá 
-  z daného zoznamu vyberie iba nepárne čísla.
-
-  Príklad:
-    oddmembers [0;1;0;2;3;0;0] = [1;3].
-*)
-
-Print odd.
-
-Fixpoint oddmembers (l : natlist) : natlist .
-Admitted.
 
 Example test_oddmembers :
   oddmembers [0;1;0;2;3;0;0] = [1;3].
@@ -286,195 +153,256 @@ Admitted.
 
 
 
-End natlist.
-                        
+Check list.          (* list : Type -> Type *)
 
-(*---------------------------------------------*)
-(** Úlohy: polymorfné funkcie vyššieho rádu    *)
-(*---------------------------------------------*)
+(**
+  Parameter X v definícii list sa automaticky stáva parametrom 
+  konštruktorov nil a cons — teda nil a cons sú teraz 
+  polymorfné konštruktory.  
 
-
-(**  
-Preštudujte si našu definíciu funkcie fold 
-z 2 prednášky, porovnajte ju s funkciami 
-zo štandardnej knižnice:
-- fold_left
-- fold_right
-a pouvažujte nad rozdielom.*)
-Print fold_left.
-Print fold_right.
-
-(** Úloha 10 ★★:
-  Úloha: Definujte funkciu sum_list, využitím fold_right 
-  ktorá zráta všetky prvky zoznamu prirodzených čísel.
-
-  Príklady:
-    sum_list [1;2;3;4;5] = 15
-    sum_list [] = 0
+  Keď ich používame, musíme im ako prvý argument 
+  poskytnúť typ prvkov zoznamu, ktorý konštruujeme.
 *)
 
-Compute fold_left plus [1;2;3] 0.
+(* Polymorfné konštruktory *)
+Check nil.       (* forall X : Type, list X *)
+Check cons.      (* forall X : Type, X -> list X -> list X *)
 
-Compute fold_right plus 0 [1;2;3].
+(* Príklady *)
+Check nil nat.        
+(* prázdny zoznam typu nat *)
 
-Definition sum_list (l : list nat) : nat .
-Admitted. 
+Check cons nat 1 (cons nat 2 (nil nat)).  
+(**
+  Povinnosť zadávať typový argument pri každom použití 
+  konštruktora zoznamu je dosť zaťažujúca;
+  čoskoro uvidíme spôsoby, ako túto potrebu anotácie znížiť.
+*)
+
+(** Definujme polymorfnú funkciu repeat *)
+Fixpoint repeat (X:Type) (a:X) (count : nat): list X :=
+match count with
+| 0 => nil X
+| S m => cons X a (repeat X a m) 
+end.
+
+Compute repeat bool true 5.
+
+Compute repeat nat 1 5.
+
+(** Odvodenie typovej anotácie *)
+(* Definujme funkcie repeat bez explicitnej typovej anotácie *)
+
+Fixpoint repeat' X a count: list X :=
+match count with
+| 0 => nil X
+| S m => cons X a (repeat' X a m) 
+end.
+
+Check repeat'.
+
+(* Automatické odvodzovanie implicitných typových argumentov *)
+Fixpoint repeat'' X a count: list X :=
+match count with
+| 0 => nil _
+| S m => cons _ a (repeat'' _ a m) 
+end.
+
+Check repeat''.
+
+Definition list123' :=
+  cons _ 1 (cons _ 2 (cons _ 3 (nil _))).
+Check list123'.
+
+(** Implicitné argumenty
+
+  Je možné vyhnúť sa písaniu _ vo väčšine prípadov tak, 
+  že Rocq vždy odvodí typový argument danej funkcie.
+
+  Príkaz Arguments špecifikuje názov funkcie (alebo konštruktora)
+  a potom zoznam argumentov, ktoré sa majú považovať za implicitné,
+  každý uzavretý do zložených zátvoriek.
+*)
+
+(* Nastavenie implicitných argumentov pre konštruktory zoznamu *)
+Arguments nil {X}.
+Arguments cons {X}.
+Arguments repeat {X}.
+
+(**
+  Teraz nemusíme poskytovať žiadne typové argumenty vôbec:
+*)
+
+Definition list123'' := cons 1 (cons 2 (cons 3 nil)).
+
+(**
+  Alternatívne môžeme deklarovať argument ako implicitný
+  priamo pri definícii funkcie, 
+  tým že ho uzavrieme do zložených zátvoriek 
+  namiesto zátvoriek obyčajných.
+*)
+
+Fixpoint repeat''' {X : Type} (x : X) (count : nat) : list X :=
+  match count with
+  | 0 => nil
+  | S count' => cons x (repeat''' x count')
+  end.
+
+(**
+  Poznámka: ani pri rekurzívnom volaní funkcie repeat'''
+  nemusíme poskytovať typový argument. 
+  V skutočnosti by bolo nesprávne ho uviesť,
+  pretože Rocq ho neočakáva.
+
+  Tento štýl budeme používať vždy, keď je to možné, ale
+  naďalej budeme používať explicitné deklarácie Arguments pre
+  konštruktory induktívnych typov.  
+
+  Dôvod je, že označenie parametra induktívneho typu ako implicitného
+  spôsobí, že sa stane implicitným pre samotný typ, 
+  nielen pre jeho konštruktory.
+*)
+(* Pri takomto prístupe vzniká jeden menší problém. 
+   Rocq niekedy nemá dostatok informácii na odvodenie typu *)
+
+Fail Definition mynil := nil nat.
+
+Definition mynil : list nat := nil.
+Definition mynil' := @nil nat.
 
 
-Example test_sum_list1: sum_list [1;2;3;4;5] = 15.
-Proof.
-Admitted.
+(** Definícia polymorfnej funkcie pre spajanie zoznamov *)
 
-Example test_sum_list2: sum_list [] = 0.
-Proof.
-Admitted.
+Fixpoint append {X:Type} (l1 l2: list X) : list X := 
+match l1 with
+| nil => l2 
+| cons x xs => cons x (append xs l2)
+end.
 
+Compute append (cons 2 nil) (cons 1 nil).
 
-(** Úloha 11 ★★:
-  Úloha: 
-  Definujte funkciu product_list, využtím fold_left, 
-  ktorá vypočíta súčin všetkých prvkov 
-  zoznamu prirodzených čísel. 
+(**
+  Napríklad, alternatívna definícia typu zoznamu:
 
-  Príklady:
-    product_list [1;2;3;4] = 24
-    product_list [] = 1
+  Inductive list' {X:Type} : Type :=
+    | nil'
+    | cons' (x : X) (l : list').
+
+  Pretože X je deklarované ako implicitné 
+  pre celú induktívnu definíciu vrátane list',
+  teraz je nutné písať len list', 
+  či už hovoríme o zoznamoch čísel, pravdivostných hodnôt
+  alebo čomkoľvek inom, namiesto list' nat alebo list' bool. 
 *)
 
 
-Definition product_list (l : list nat) : nat .
-Admitted.
+(** Zavedenie štandardnej notácie pre zoznamy*)
+
+Notation "x :: y" := (cons x y)
+                     (at level 60, right associativity).
+Notation "[ ]" := nil.
+Notation "[ x ; .. ; y ]" := (cons x .. (cons y []) ..).
+Notation "x ++ y" := (append x y)
+                     (at level 60, right associativity).
+
+Check [1].
+Compute [1;2]++[3;5;6].
+
+(*===========================================*)
+(*           Polymorfná verzia pair          *)
+
+Inductive product (X:Type) (Y:Type): Type :=
+| pair (m:X) (n:Y).
+
+Check pair nat bool 3 true.
+Check pair _ _ 3 true.
+
+(* Nastavenie implicitných argumentov *)
+Arguments pair {X} {Y}.
+
+Check pair 3 true.
+
+(* Zavedieme štandardnú notáciu pre dvojicu *)
+Notation "( x , y )" := (pair x y).
+
+(* Zavedieme štandardnú notáciu pre typ dvojica *)
+Notation "X * Y" := (product X Y) : type_scope.
+
+Check product. 
+Check pair 3. 
+Check pair 3 true. 
+(* (3, true) : product  *)
+
+Definition fst {X Y: Type} (p: X * Y): X := 
+match p with
+| (x, y) => x
+end.
+
+Check fst.
 
 
-Example test_product_list1: product_list [1;2;3;4] = 24.
+Definition snd {X Y: Type} (p: X * Y): Y := 
+match p with
+| (x, y) => y
+end.
+
+Check snd.
+
+Compute (fst (1,true)).
+Compute (snd (1,true)).
+Compute (fst ((false,5),true)).
+Compute (fst (1,true)).
+
+Definition swap {X Y : Type} (p: X * Y): Y * X :=
+match p with 
+| (x,y) => (y,x)
+end. 
+
+Theorem swap_swap_p:
+  forall {X Y: Type} (p: X*Y), p = swap (swap p).
 Proof.
-Admitted.
-
-Example test_product_list2: product_list [] = 1.
-Proof.
-Admitted.
-
-(** Úloha 12 ★★:
-  Úloha: Definujte funkciu filter_even_gt7,
-  ktorá zo zoznamu prirodzených čísel vyberie prvky, 
-  ktoré sú párne a zároveň väčšie ako 7.
-
-  Príklady:
-    filter_even_gt7 [1;2;6;9;10;3;12;8] = [10;12;8].
-    filter_even_gt7 [5;2;6;19;129] = [].
-*)
- 
-
-Definition filter_even_gt7 (l : list nat) : list nat .
-Admitted.
+intros.
+destruct p.
+simpl.
+reflexivity.
+Qed.
 
 
-Example test_filter_even_gt7_1 :
-  filter_even_gt7 [1;2;6;9;10;3;12;8] = [10;12;8].
-Proof.
-Admitted.
+(*===========================================*)
+(*         Polymorfná verzia option          *)
+(**
+  Posledným polymorfný typ v rámci tejto prednášky 
+  bude polymorfný option, ktorý zovšeobecňuje natoption 
+  z predchádzajúcej časti. 
 
-Example test_filter_even_gt7_2 :
-  filter_even_gt7 [5;2;6;19;129] = [].
-Proof.
-Admitted.
-
-
-(** Úloha 13 ★★★:
-  Úloha: Definujte partition, ktorá 
-  rozdelí zoznam podľa predikátu.
-
-  Funkcia má tvar (signatúru):
-    partition : ∀ X : Type, 
-            (X → bool) → list X → (list X * list X)
-
-  Výstupom je dvojica zoznamov, kde:
-    - prvý obsahuje prvky, ktoré test spĺňajú,
-    - druhý obsahuje prvky, ktoré test nespĺňajú.
-
-  Poradie prvkov v oboch zoznamoch by malo zostať rovnaké 
-  ako v pôvodnom zozname.
-
-  Príklady:
-    partition odd [1;2;3;4;5] = ([1;3;5], [2;4]).
-    partition (fun x => false) [5;9;0] = ([], [5;9;0]).
-*)
-
-Definition partition {X : Type}
-                     (test : X -> bool)
-                     (l : list X)
-                   : list X * list X .
-Admitted.
-
-
-Example test_partition1: 
-partition odd [1;2;3;4;5] = ([1;3;5], [2;4]).
-Proof.
-Admitted.
-
-Example test_partition2: partition 
-        (fun x => false) [5;9;0] = ([], [5;9;0]).
-Proof.
-Admitted.
-
-
-(** Úloha 14 ★★:
-Úloha: Dokážte, že map distribuuje 
-cez spojenie zoznamov (++).
-
-Formálne platí:
-∀ (X Y : Type) (f : X → Y) (l1 l2 : list X),
-map f (l1 ++ l2) = (map f l1) ++ (map f l2)
-*)
-
-Lemma map_app : 
-forall (X Y : Type) (f : X -> Y) (l1 l2 : list X),
-  map f (l1 ++ l2) = (map f l1) ++ (map f l2).
-Proof. 
-Admitted.
-
-
-(** Úloha 15 ★★★:
-  Úloha: Dokážte, že map a rev komutujú.  
-  
-  Poznámka:
-  Môžete použiť vetu z predchadzajúcej úlohy.
-
-  Formálne platí:
-    ∀ (X Y : Type) (f : X → Y) (l : list X),
-      map f (rev l) = rev (map f l)
+  (Definíciu umiestňujeme do modulu, pretože štandardná 
+  knižnica už definuje option a práve túto použijeme 
+  nižšie pri redefinícii funkcie nth_error.)
 *)
 
-Theorem map_rev : 
-        forall (X Y : Type) (f : X -> Y) (l : list X),
-                map f (rev l) = rev (map f l).
-Proof.
-Admitted.
+Module PolymorphicOption.
 
+  (* Polymorfná definícia option *)
+  Inductive option (X: Type) : Type :=
+    | Some (x : X)
+    | None.
 
-(** Úloha 16 ★★:
-  Úloha: Definujte funkciu flat_map, 
-  ktorá je analogická funkcii [map],
-  ale namiesto jedného výsledku typu Y 
-  pre každý prvok, vráti zoznam typu list Y.
-  Výsledné zoznamy sa spoja do jedného zoznamu.
+  (* Nastavenie implicitného argumentu *)
+  Arguments Some {X}.
+  Arguments None {X}.
 
-  Príklad:
-    flat_map (fun n ⇒ [n;n+1;n+2]) [1;5;10]
-      = [1; 2; 3; 5; 6; 7; 10; 11; 12]
-*)
+End PolymorphicOption.
 
-Fixpoint flat_map {X Y: Type} 
-  (f: X -> list Y) (l: list X): list Y .
-Admitted.
+(* Polymorfná verzia funkcie nth_error *)
 
+Fixpoint nth_error {X:Type} (l:list X) (n:nat): option X := 
+match l with
+| []     => None
+| hd::tl => match n with
+           | 0    => Some hd
+           | S m  => nth_error tl m end
+end.
 
-Example test_flat_map1:
-  flat_map (fun n => [n;n;n]) [1;5;4]
-  = [1; 1; 1; 5; 5; 5; 4; 4; 4].
-  Proof. 
-  Admitted.
-  
-
-
-
+Compute nth_error [] 4.
+Compute nth_error [10;12;0] 1.
+Compute nth_error [10;12;0] 2.
