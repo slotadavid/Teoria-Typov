@@ -1,6 +1,5 @@
 (*********************************************)
 (**       Zadanie k prednáške 3             **)
-
 (*        Import potrebných knižníc         *) 
 
 Require Import Coq.Bool.Bool.
