@@ -1,0 +1,669 @@
+(*********************************************)
+(** 2. odovzdávka zadania: Jazyk NBL        **)
+(*********************************************)
+
+(*        Import potrebných knižníc         *) 
+
+Require Import Stdlib.Bool.Bool.
+Require Import Stdlib.Arith.PeanoNat.
+Require Import Init.Nat.
+Require Import Stdlib.Lists.List.
+Import ListNotations.
+Local Open Scope nat_scope.
+Local Open Scope list_scope.
+
+
+(*============================================*)
+(** NBL: Jazyk čísel a pravdivostných hodnôt **)
+(*============================================*)
+Module nbl.
+
+(*--------------------------------------------*)
+(** Syntax *)
+Inductive nbl : Type := 
+| tru : nbl
+| fls : nbl
+| zro : nbl
+| iszro : nbl -> nbl
+| prede : nbl -> nbl
+| scc : nbl -> nbl
+| ite : nbl -> nbl -> nbl -> nbl.
+
+(*--------------------------------------------*)
+(** Notácia pre konkrátnu syntax              *)
+
+Declare Custom Entry tm.
+Declare Scope tm_scope.
+Notation "'true'"  := true (at level 1): tm_scope.
+Notation "'true'" := 
+  (tru) (in custom tm at level 0): tm_scope.
+Notation "'false'"  := 
+  false (at level 1): tm_scope.
+Notation "'false'" := 
+  (fls) (in custom tm at level 0): tm_scope.
+Notation "<{ e }>" := 
+  e (e custom tm at level 99): tm_scope.
+Notation "( x )" := 
+  x (in custom tm, x at level 99): tm_scope.
+Notation "x" := 
+  x (in custom tm at level 0, x constr at level 0): tm_scope.
+Notation "'0'" := 
+  (zro) (in custom tm at level 0): tm_scope.
+Notation "'0'"  := 
+  0 (at level 1): tm_scope.
+Notation "'succ' x" := 
+  (scc x) (in custom tm at level 90, x custom tm at level 80): tm_scope.
+Notation "'pred' x" := 
+  (prede x) (in custom tm at level 90, x custom tm at level 80): tm_scope.
+Notation "'iszero' x" := 
+  (iszro x) (in custom tm at level 80, x custom tm at level 70): tm_scope.
+Notation "'if' c 'then' t 'else' e" := 
+  (ite c t e)
+    (in custom tm at level 90, c custom tm at level 80,
+    t custom tm at level 80, e custom tm at level 80): tm_scope.
+Local Open Scope tm_scope.
+
+(*--------------------------------------------*)
+(** Hodnoty jazyka NBL                        *)
+
+Inductive bval : nbl -> Prop := 
+| bvtrue : bval tru
+| bvfalse : bval fls.
+
+Inductive nval : nbl -> Prop := 
+| nv0 : nval zro
+| nvscc : forall t, nval t -> nval (scc t).
+
+(** Normálna forma termov je hodnota *)
+Definition value (t : nbl) := nval t \/ bval t.
+
+
+(*-----------------------------------------------*)
+(** Štrukturálna operačná sémantika ako relácia  *)
+
+Reserved Notation "t '-->' t'" (at level 40).
+Inductive smallstep : nbl -> nbl -> Prop :=
+  | st_iftrue : forall t1 t2,
+      <{ if true then t1 else t2 }> --> t1
+  | st_iffalse : forall t1 t2,
+      <{ if false then t1 else t2 }> --> t2
+  | st_if : forall c c' t2 t3,
+      c --> c' ->
+      <{ if c then t2 else t3 }> --> <{ if c' then t2 else t3 }>
+  | st_succ : forall t1 t1',
+      t1 --> t1' ->
+      <{ succ t1 }> --> <{ succ t1' }>
+  | st_pred0 :
+      <{ pred 0 }> --> <{ 0 }>
+  | st_predsucc : forall v,
+      nval v ->
+      <{ pred (succ v) }> --> v
+  | st_pred : forall t1 t1',
+      t1 --> t1' ->
+      <{ pred t1 }> --> <{ pred t1' }>
+  | st_iszero0 :
+      <{ iszero 0 }> --> <{ true }>
+  | st_iszeronv : forall v,
+       nval v ->
+      <{ iszero (succ v) }> --> <{ false }>
+  | st_iszero : forall t1 t1',
+      t1 --> t1' ->
+      <{ iszero t1 }> --> <{ iszero t1' }>
+where "t '-->' t'" := (smallstep t t').
+Hint Constructors smallstep : core.
+
+(*---------------------------------------------*)
+(** Reflexívno-tranzitívny uzáver (multi-step) *)
+
+Inductive multistep : nbl -> nbl -> Prop :=
+  | multi_refl : forall t, multistep t t  
+  | multi_tran : forall t1 t2 t3,
+      smallstep t1 t2 ->  
+      multistep t2 t3 ->
+      multistep t1 t3.
+
+Notation "t1 '-->*' t2" := (multistep t1 t2) (at level 40).
+Hint Constructors multistep : core.
+
+(*--------------------------------------------*)
+(** Normálne formy                            *)
+Definition normal_form (t : nbl) : Prop :=
+   ~exists t', smallstep t t'.
+
+
+(*--------------------------------------------*)
+(** Typový systém                             *)
+
+Inductive ty : Type :=
+  | Bool : ty
+  | Nat : ty.
+
+Declare Custom Entry ty.
+Notation "'Nat'" := Nat (in custom ty).
+Notation "'Bool'" := Bool (in custom ty).
+Notation "x" := x (in custom ty, x global).
+
+Reserved Notation "<{ '|--' t 'of' T }>"
+            (at level 0, t custom tm, T custom ty).
+
+Inductive typed : nbl -> ty -> Prop :=
+  | t_true : 
+       <{ |-- true of Bool }>
+  | t_false :
+       <{ |-- false of Bool }>
+  | t_if : forall t1 t2 t3 T,
+       <{ |-- t1 of Bool }> ->
+       <{ |-- t2 of T }> ->
+       <{ |-- t3 of T }> ->
+       <{ |-- if t1 then t2 else t3 of T }>
+  | t_0 :
+       <{ |-- 0 of Nat }>
+  | t_succ : forall t1,
+       <{ |-- t1 of Nat }> ->
+       <{ |-- succ t1 of Nat }>
+  | t_pred : forall t1,
+       <{ |-- t1 of Nat }> ->
+       <{ |-- pred t1 of Nat }>
+  | t_iszero : forall t1,
+       <{ |-- t1 of Nat }> ->
+       <{ |-- iszero t1 of Bool }>
+
+where "<{ '|--' t 'of' T }>" := (typed t T).
+Hint Constructors typed : core.
+
+
+(*--------------------------------------------*)
+(** Veta o jednoznačnosť typu                 *)
+
+Theorem type_uniqueness: forall t T1 T2, 
+        <{ |-- t of T1 }> /\ <{ |-- t of T2 }> -> T1 = T2.
+Proof.
+  intros.
+  destruct H as [HT1 HT2].   
+  (* rozdelíme konjunkciu na dva predpoklady *)
+  induction t. 
+  (* dôkaz indukciou podľa štruktúry termu t *)
+  - (* prípad: t = true *)
+    inversion HT1. inversion HT2. reflexivity.
+    (** využitím vety o inverzii odvodíme, 
+        že ak  <{ |-- true of T }>, tak T je Bool*)
+  - (* prípad: t = false *)
+    inversion HT1. inversion HT2. reflexivity.
+    (** rovnaké zdôvodnenie ako vyššie *)
+  - (* prípad: t = 0 *)
+    inversion HT1. inversion HT2. reflexivity.
+    (** nula má vždy typ [Nat]. *)
+  - (* prípad: t = succ t1 *)
+    inversion HT1. inversion HT2. reflexivity.
+    (** inverzia na typovom pravidle pre iszero, 
+        potom T musí Nat *)
+  - (* prípad: t = pred t1 *)
+    inversion HT1. inversion HT2. reflexivity.
+    (** rovnaké zdôvodnenie ako vyššie *)
+  - (* prípad: t = iszero t1 *)
+    inversion HT1. inversion HT2. reflexivity.
+    (** test [iszero] má vždy výsledok typu [Bool]. *)
+  - (* prípad: t = if t1 then t2 else t3 *)
+    inversion HT1; subst.
+    inversion HT2; subst.
+    apply IHt2; assumption.
+Qed.
+
+(*--------------------------------------------*)
+(** Vety o kanonických hodnotách              *)
+
+Lemma bool_canomical : forall t, 
+      <{|-- t of Bool}> /\ value t -> bval t.
+Proof.
+  intros.
+  unfold value in H.            
+  (* rozbalíme definíciu hodnoty *)
+  destruct H as [Ht Hbv].       
+  (* rozdelíme konjunkciu typovej relácie
+    a výroku, že t je hodnota *)
+  destruct Hbv as [Hnv | Hbv].       
+  (* hodnota môže byť nval alebo bval *)
+  - inversion Hnv. subst.
+    + inversion Ht.                  
+    (* t = 0, ale 0 má typ Nat, nie Bool *)
+    + subst. inversion Ht.
+    (* t = succ t má typ Nat, nie Bool *)
+  - apply Hbv.                       
+  (* t boolean hodnota *)
+Qed.
+
+
+Lemma nat_canomical : forall t, 
+      <{|-- t of Nat}> /\ value t -> nval t.
+Proof.
+  intros.
+  destruct H as [Ha Hb].
+  unfold value in Hb.
+  destruct Hb as [Hnv | Hbv].
+  - apply Hnv.                       
+  (* ak je t číselná hodnota, hotovo *)
+  - inversion Hbv. subst.
+    inversion Ha. subst.
+    inversion Ha.
+Qed.
+
+
+(*--------------------------------------------*)
+(**     Dôkaz bezbečnosti jazyka NBL:         *)
+(**     Veta o progresii a stabilite          *)
+
+
+Theorem progress: forall t T, 
+        <{ |-- t of T}> -> (value t) \/ exists t', (t --> t').
+Proof.
+intros.
+(** Dôkaz indukciou nad typovou reláciou *)
+induction H. 
+  (** true *)
+- left. unfold value. right. apply bvtrue.
+  (** false *)
+- left. unfold value. right. apply bvfalse.
+  (** if t1 then t2 else t3  *)
+- right. destruct IHtyped1. 
+  + assert (Hb : bval t1).
+    { apply (bool_canomical t1). split; assumption. } 
+    inversion Hb. subst.  
+    * exists t2. apply st_iftrue.
+    * exists t3. apply st_iffalse.  
+  + destruct H2 as [t1' Hstep]. 
+    exists (<{if t1' then t2 else t3}>). 
+    apply st_if. assumption.
+  (** 0 *)
+- left. unfold value. left. apply nv0.
+  (** succ t1 *)
+- destruct IHtyped. 
+ + left. assert (nval t1) as Hn.
+    { apply (nat_canomical t1). 
+      split. apply H. apply H0. }
+    unfold value. left. apply nvscc. apply Hn.
+ + right. destruct H0 as [t' Hstep]. 
+   exists (scc t'). 
+   apply st_succ. apply Hstep.
+  (** pred t1 *)
+- destruct IHtyped as [Hv | [t' Hstep]]. 
+  + destruct (nat_canomical t1). 
+    split. assumption. assumption. 
+    right. exists zro. apply st_pred0.   
+    right. exists t. apply st_predsucc. assumption.
+  + right. exists (prede t'). apply st_pred. assumption.
+  (** iszero t1 *) 
+- destruct IHtyped as [Hv | [t' Hstep]]. 
+ + destruct (nat_canomical t1). split. 
+    * assumption.
+    * assumption.
+    * right. exists tru. apply st_iszero0.
+    * right. exists fls. apply st_iszeronv. assumption.
+ + right. exists (iszro t'). apply st_iszero. assumption.
+Qed.  
+
+
+(** Indukcia na typovej relácii: *)
+Theorem preservation: forall t t' T, 
+        <{|-- t of T}> /\ (t-->t') ->  <{|-- t' of T}>.
+intros.
+destruct H. 
+(** rozdelenie konjunkcie na typová a vyhodnocovaciu reláciu *)
+generalize dependent t'.
+induction H; intros t' Hstep; 
+inversion Hstep; subst; try assumption.
+(* if-true/false *)
+- apply t_if.
+  + apply IHtyped1. assumption.
+  + assumption.
+  + assumption.
+(* succ *)
+- apply t_succ. apply IHtyped in H1. assumption. 
+(* pred 0 *)
+- inversion H. assumption.
+(* pred *)
+- apply t_pred. apply IHtyped. assumption. 
+(* true *)
+- apply t_true. 
+(* false *)
+- apply t_false.
+(* iszero *)
+- apply t_iszero. apply IHtyped. apply H1.
+Qed.
+
+
+(*-------------------------------------------*)
+(** Úlohy:                                   *)
+(*-------------------------------------------*)
+
+(** Úloha 1 ★ Dokážte, nasledujúcu teorému. *)
+Theorem ex_smallstep : 
+  multistep <{
+    if (iszero 0) 
+      then 
+        (if true then pred 0 else succ 0) 
+      else 
+        if iszero (succ (pred 0)) then 0 else succ 0 }> <{0}>.
+Proof.
+Admitted. 
+
+(** Úloha 2 ★ Dokážte, nasledujúcu teorému. *)
+Theorem ex_well_typed: 
+<{|-- if (iszero 0) 
+        then 
+          (if true then pred 0 else succ 0) 
+        else 
+          if iszero (succ (pred 0)) then 0 else succ 0  of Nat }>.
+Proof.
+Admitted.
+
+(** Úloha 3 ★ Dokážte, nasledujúcu teorému. *)
+Theorem ex_not_well_typed: 
+~ <{|-- if (iszero 0) 
+        then 
+          (if true then pred 0 else succ 0) 
+        else 
+          if iszero (succ (pred 0)) then 0 else succ 0  of Bool }>.
+Proof.
+Admitted.
+
+
+(** Úloha 4 ★ 
+Dokážte teorému o zachovaní typu indukciou na vyhodnocovacej relácii.
+*)
+Theorem preservation': forall t t' T, 
+        <{|-- t of T}> /\ (t-->t') ->  <{|-- t' of T}>.
+intros.
+destruct H as [Ht Hr].
+generalize dependent T.
+induction Hr.
+(** Dokončte dôkaz *)
+Admitted.
+
+
+
+(*================================================*)
+(** Štrukturálna operačná sémantika  *)
+
+(** 
+V predchádzajúcej časti bola definovaná 
+štrukturálná operačná sémantika pre jazyk NBL
+ako relácia:
+
+        t --> t'
+
+Táto relácia popisuje jeden krok redukcie
+(tzv. *small-step* sémantiku),
+kde [t] sa redukuje na [t'] 
+podľa niektorého z pravidiel definície [smallstep].
+
+V tejto úlohe vytvoríte funkciu, 
+ktorá sa správa ekvivalentne k relačnej definícii.
+*)
+
+(*---------------------------------*)
+(** ** Pomocné funkcie: Hodnoty    *)
+(*---------------------------------*)
+
+Fixpoint isnumericval (t : nbl) : bool :=
+  match t with
+  | zro => true
+  | scc t1 => isnumericval t1
+  | _ => false
+  end.
+
+Definition isval (t : nbl) : bool :=
+  match t with
+  | tru => true
+  | fls => true
+  | _ => isnumericval t
+  end.
+
+
+(** Definujte funkciu [evalsmallstep], 
+ktorá vykoná jeden krok výpočtu 
+nad termom [t] a vráti výsledok ako [option nbl]:
+
+  - Ak term [t] dokáže spraviť jeden krok (t --> t'),
+    funkcia má vrátiť [Some t'].
+
+  - Ak [t] už nie je možné ďalej vyhodnocovať,
+    funkcia má vrátiť [None].
+
+    Správanie funkcie musí zodpovedať 
+    všetkým pravidlám relácie [smallstep].
+*)
+
+(** Úloha 5 ★ Implementujte funkciu [evalsmallstep] *)
+Fixpoint evalsmallstep (t : nbl) : option nbl :=
+  (** TODO: doplňte definíciu podľa pravidiel relácie [smallstep] *)
+  match t with
+  | _ => None
+  end.
+
+(*---------------------------------------------------------------*)
+(** ** Testy a overenie                                           *)
+(*---------------------------------------------------------------*)
+Example test_eval1 :
+  evalsmallstep <{ if true then 0 else (succ 0) }> = Some <{ 0 }>.
+Proof. 
+Admitted.
+
+Example test_eval2 :
+  evalsmallstep <{ pred (succ (succ 0)) }> = Some <{ succ 0 }>.
+Proof.
+Admitted.
+
+Example test_eval3 :
+  evalsmallstep <{ iszero (succ 0) }> = Some <{ false }>.
+Proof. 
+Admitted.
+
+(** 
+Po správnej implementácii by sa mala vaša funkcia 
+správať ekvivalentne k relácii [smallstep]. 
+*)
+
+(** Bonusová úloha 1 ★ 
+
+Dokážte, že vaša funkcia je ekvivalentná s relačnou definíciou:
+*)
+Theorem evalsmallstep_equiv : forall t t',
+    (t --> t') <-> (evalsmallstep t = Some t').
+Proof. 
+Admitted.
+
+
+(*===============================================================*)
+(**       Prirodzená (big-step) operačná sémantika               *)
+(*===============================================================*)
+
+(** 
+V tejto úlohe rozšírime náš jazyk o definíciu
+prirodzenej operačnej sémantiky (big-step semantics).
+
+Táto sémantika opisuje celý výpočet
+(od vstupného termu až po výslednú hodnotu),
+na rozdiel od štrukturálnej (small-step), 
+ktorá opisuje iba jeden krok výpočtu.
+*)
+
+(*---------------------------------------------------------------*)
+(** Vyhodnocovacia relácia (big-step)                         *)
+(*---------------------------------------------------------------*)
+
+(** Značenie vyhodnocovania:
+
+        t ==> v
+
+    znamená, že term [t] sa vyhodnotí na hodnotu [v]
+    podľa pravidiel prirodzenej sémantiky.
+*)
+
+Reserved Notation "t '==>' t'" (at level 40).
+
+(** Definujte induktívnu reláciu [bigstep : nbl -> nbl -> Prop],
+    ktorá reprezentuje pravidlá prirodzenej operačnej sémantiky.
+
+    Použite nasledujúce pravidlá:
+
+
+    t ==> v₂
+-------------- (b_value)
+    v₁ ==> v₂
+
+
+    t₁ ==> true     t₂ ==> v₃
+------------------------------ (b_iftrue)
+    if t₁ then t₂ else t₃ ==> v₃
+
+
+    t₁ ==> false    t₃ ==> v₃
+------------------------------ (b_iffalse)
+    if t₁ then t₂ else t₃ ==> v₃
+
+
+    t₁ ==> nv₁
+----------------------- (b_succ)
+    succ t₁ ==> succ nv₁
+
+
+    t₁ ==> 0
+----------------- (b_predzero)
+    pred t₁ ==> 0
+
+
+    t₁ ==> succ nv₁
+--------------------- (b_predsucc)
+    pred t₁ ==> nv₁
+
+
+    t₁ ==> 0
+--------------------- (b_iszerozero)
+    iszero t₁ ==> true
+
+
+    t₁ ==> succ nv₁
+----------------------- (b_iszerosucc)
+    iszero t₁ ==> false
+
+*)
+
+(** Úloha 6 ★
+Doplňte definíciu relácie bigstep podľa vyššie uvedených pravidiel. 
+- Ako názvy konštruktorov použite názvy pravidiel.
+*)
+Inductive bigstep : nbl -> nbl -> Prop :=
+ 
+where "t '==>' t'" := (bigstep t t').
+
+Hint Constructors bigstep : core.
+
+(*---------------------------------------------------------------*)
+(** ** Funkčná verzia: [evalbigstep]                             *)
+(*---------------------------------------------------------------*)
+
+(** 
+Implementujte funkciu prirodzenej sémantiky [evalbigstep],
+ktorá pre daný term [t] rekurzívne vyhodnotí 
+celý výraz a vráti [Some v],
+ak sa term vyhodnotí na hodnotu [v], inak [None].
+
+Napríklad:
+
+  evalbigstep <{ if true then 0 else (succ 0) }> = Some 0
+  evalbigstep <{ pred (succ 0) }> = Some 0
+*)
+
+(** Úloha 7 ★ 
+Doplňte definíciu funkcie evalbigstep podľa vyššie 
+uvedených pravidiel.
+    *)
+Fixpoint evalbigstep (t : nbl) : option nbl :=
+  match t with
+  | _ => None
+  end.
+
+(*--------------------------------------*)
+(** ** Testovanie                       *)
+(*--------------------------------------*)
+
+(** Otestujte správanie funkcie [evalbigstep] 
+    na jednoduchých výrazoch. *)
+
+Compute (evalbigstep <{ if true then 0 else (succ 0) }>).
+(* Očakávaný výsledok: Some 0 *)
+
+Compute (evalbigstep <{ pred (succ (succ 0)) }>).
+(* Očakávaný výsledok: Some (succ 0) *)
+
+Compute (evalbigstep <{ iszero (succ 0) }>).
+(* Očakávaný výsledok: Some false *)
+
+Example test_big1 :
+  evalbigstep <{ if false then 0 else (succ 0) }> = Some <{ succ 0 }>.
+Proof. 
+Admitted.
+
+Example test_big2 :
+  evalbigstep <{ pred (succ (succ 0)) }> = Some <{ succ 0 }>.
+Proof. 
+Admitted.
+
+Example test_big3 :
+  evalbigstep <{ iszero (succ 0) }> = Some <{ false }>.
+Proof.
+Admitted.
+
+(** Bonusová úloha 2 ★ 
+Dokážte ekvivalenciu medzi relačnou a funkčnou
+verziou prirodzenej operačnej sémantiky (big-step). *)
+Theorem evalbigstep_correct : forall t v,
+  evalbigstep t = Some v <-> t ==> v.
+Proof.
+Admitted.
+
+(*-----------------------------------*)
+(** Ekvivalencia sémantických metód  *)
+(*-----------------------------------*)
+
+(** Bonusová úloha 3 ★ 
+Dokážte, že prirodzená a štrukturálna operačná sémantika 
+sú ekvivalentné:
+*)
+Theorem bigstep_smallstep_equiv :
+forall t v,
+    (t ==> v) <-> (t -->* v /\ isval v = true).
+Admitted.
+
+(*---------------------------------*)
+(** Typový systém                  *)
+(*---------------------------------*)
+
+(** Úloha 8 ★ Definujte funkciu typedb, ktorá overí, 
+či term je správne typovaný. 
+*)
+
+Fixpoint typedb (t : nbl) (T : ty) : bool.
+Admitted.
+
+(*--------------------------------------------*)
+(** testy *)
+Example typedb_example1 :
+  typedb <{ if true then 0 else 0 }> Nat = true.
+Proof. (** doplňte dôkaz **) Admitted.
+
+Example typedb_example2 :
+  typedb <{ if true then 0 else false }> Nat = false.
+Proof. (** doplňte dôkaz **) Admitted.
+
+
+(** Bonusová úloha 4 ★  
+Dokážte ekvivalenciu medzi reláciou typed 
+a funkciou typedb
+*)
+Theorem typing_Equal: 
+forall t T, <{ |-- t of T }> <-> typedb t T = true.
+Proof.
+Admitted.  
+
+End nbl.
